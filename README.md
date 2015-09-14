@@ -1,5 +1,5 @@
 # githubProjects
-My learning experience with GitHub to explore new technologies
+My learning experience with GitHub to explore new technologies and refresh existing knowledge
 
-#Drupal 7.x Custom Entity
-1. Drupal 7.x Custom CRUD Module with ability to do search and perform bulk operations
+#gametype = Drupal 7.x Custom Entity
+Drupal 7.x custom CRUD entity with ability to do search and perform bulk operations
