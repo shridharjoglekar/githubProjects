@@ -1,0 +1,456 @@
+<?php
+
+/**
+ * @file
+ * gametype.module
+ */
+
+// 50 items per page.
+define('TOTAL_LIST_ITEMS_PER_PAGE', 2);
+
+// Admin uri links.
+define('ADMIN_CONTENT_GAMETYPE_MANAGE_URI', 'admin/content/gametype/manage/');
+define('ADMIN_CONTENT_GAMETYPE_URI', 'admin/content/gametype');
+
+/**
+ * Implements hook_entity_info().
+ */
+function gametype_entity_info() {
+    $gametype_entity_info['gametype'] = array(
+        'label' => t('Gametype'),
+        'label callback' => 'gametype_label_callback',
+        'entity class' => 'Gametype',
+        'controller class' => 'GametypeController',
+        'base table' => 'kw_game_type',
+        'uri callback' => 'gametype_uri',
+        'fieldable' => TRUE,
+        'entity keys' => array(
+            'id' => 'id',
+        ),
+        'uri callback' => 'entity_class_uri',
+        'load hook' => 'gametype_load',
+        'static cache' => TRUE,
+        'admin ui' => array(
+            'path' => 'admin/content/gametype',
+            'controller class' => 'GametypeUIController',
+            'file' => 'includes/gametype.admin.inc',
+        ),
+        'module' => 'gametype',
+        'access callback' => 'gametype_access_callback',
+        'bundles' => array(
+            'gametype' => array(
+                'label' => 'Gametype',
+                'admin' => array(
+                    'path' => 'admin/structure/gametype/manage',
+                    'access arguments' => array('administer gametype'),
+                ),
+            ),
+        ),
+        'views controller class' => 'EntityDefaultViewsController',
+    );
+
+    return $gametype_entity_info;
+}
+
+
+/**
+ * Implements hook_menu().
+ */
+function gametype_menu() {
+    $items = array();
+
+    $items['gametype/%gametype'] = array(
+        'title' => 'Gametype',
+        'page callback' => 'gametype_view_entity',
+        'page arguments' => array(1),
+        'access callback' => 'gametype_access_menu_callback',
+        'access arguments' => array('view', 1),
+    );
+
+    $items['gametype/locate'] = array(
+        'page callback' => 'gametype_locate_callback',
+        'access arguments' => array('access content'),
+    );
+
+    $items['admin/content/gametype/bulk/delete/%'] = array(
+        'title' => 'Bulk Delete Gametype',
+        'page callback' => 'drupal_get_form',
+        'page arguments' => array('gametype_bulk_delete', 5),
+        'access arguments' => array('administer gametype entities'),
+        'file' => 'includes/gametype.admin.inc',
+    );
+
+    $items['admin/structure/gametype'] = array(
+        'title' => 'Gametype Fields',
+        'access arguments' => array('administer gametype entities'),
+        'type' => MENU_NORMAL_ITEM,
+    );
+
+    return $items;
+}
+
+
+
+
+/**
+ * Help function api data.
+ */
+function gametype_locate_callback() {
+    $params = drupal_get_query_parameters();
+
+    if (isset($params['name'])) {
+        $conditions = $params['name'];
+        $result = gametype_entity_query($conditions);
+        $data = gametype_load_multiple($result);
+        drupal_json_output($data);
+    }
+}
+
+
+
+/**
+ * Implements hook_permission().
+ */
+function gametype_permission() {
+    return array(
+        'administer gametype entities' => array(
+            'title' => t('Administer Gametype Entities'),
+            'description' => t('Allows a user to administer gametype entities'),
+        ),
+        'view gametype entities' => array(
+            'title' => t('View Gametype Entity'),
+            'description' => t('Allows a user to view the gametype entities.'),
+        ),
+        'create gametype entities' => array(
+            'title' => t('Create Gametype Entities'),
+            'description' => t('Allows a user to create gametype entities.'),
+        ),
+        'edit gametype entities' => array(
+            'title' => t('Edit Gametype Entities'),
+            'description' => t('Allows a user to edit gametype entities.'),
+        ),
+        'delete gametype entities' => array(
+            'title' => t('Delete Gametype Entities'),
+            'description' => t('Allows a user to delete gametype entities.'),
+        ),
+        'use gametype bulk operations' => array(
+            'title' => t('Do bulk operations on Gametype entities'),
+            'description' => t('Allows a user to do bulk operations.'),
+        ),
+    );
+}
+
+
+
+/**
+ * Check access permission for Gametype Entity UI.
+ */
+function gametype_access_menu_callback($op, $gametype = NULL, $account = NULL) {
+    switch ($op) {
+        case 'view':
+            return user_access('view gametype entities', $account);
+
+        case 'create':
+            return user_access('create gametype entities', $account);
+
+        case 'update':
+            return user_access('edit gametype entities', $account);
+
+        case 'delete':
+            return user_access('delete gametype entities', $account);
+    }
+
+    return FALSE;
+}
+
+
+/**
+ * Gametype access callback.
+ */
+function gametype_access_callback() {
+    if (user_is_anonymous() && !user_access('administer gametype entities')) {
+        return FALSE;
+    }
+    else {
+        return TRUE;
+    }
+}
+
+/**
+ * Implements hook_theme().
+ */
+function gametype_theme() {
+    return array(
+        'gametype_full' => array(
+            'variables' => array('gametype' => NULL),
+            'file' => 'includes/gametype.theme.inc',
+        ),
+    );
+}
+
+/**
+ * Helper function for custom queries.
+ */
+function gametype_entity_query($conditions = array()) {
+
+    $query = new EntityFieldQuery();
+    /** @note this is not table name, this module name */
+    $query->entityCondition('entity_type', 'gametype');
+
+    // Apply conditions.
+    foreach ($conditions as $key => $value) {
+        $query->propertyCondition($key, $value);
+    }
+
+    $result = $query->execute();
+
+    if (isset($result['gametype'])) {
+        $gametype = array_keys($result['gametype']);
+    }
+    else {
+        $gametype = array();
+    }
+
+    return $gametype;
+}
+
+/**
+ * Label callback for gametype entities, for menu router, etc.
+ */
+function gametype_label_callback($gametype, $type) {
+    return empty($gametype->name) ? 'Untitled Gametype' : $gametype->name;
+}
+
+/**
+ * Saves Gametype to database.
+ */
+function gametype_save(gametype $gametype) {
+    return $gametype->save();
+}
+
+/**
+ * View for /gametype/<id> page.
+ */
+function gametype_view_entity($gametype) {
+    $fullname = $gametype->name . ' [' . $gametype->id .']';
+    drupal_set_title($fullname);
+    // Path not entity.
+    $gametype_output = theme('gametype_full', array('gametype' => $gametype));
+    return $gametype_output;
+}
+
+
+
+/**
+ * Gametype custom entity class.
+ */
+class Gametype extends Entity {
+    /**
+     * Override defaultUri().
+     */
+    protected function defaultUri() {
+        return array('path' => 'gametype/' . $this->identifier());
+    }
+}
+
+
+
+/**
+ * Menu autoloader for /gametype.
+ */
+function gametype_load($ids, $reset = FALSE) {
+    $gametype = gametype_load_multiple(array($ids), array(), $reset);
+    return reset($gametype);
+}
+
+/**
+ * Load multiple gametype based on certain conditions.
+ */
+function gametype_load_multiple($ids = array(), $conditions = array(), $reset = FALSE) {
+    return entity_load('gametype', $ids, $conditions, $reset);
+}
+
+/**
+ * Deletes a gametype.
+ */
+function gametype_delete(gametype $gametype) {
+    $gametype->delete();
+}
+
+/**
+ * Delete multiple gametype.
+ */
+function gametype_delete_multiple(array $gametype_ids) {
+    entity_get_controller('gametype')->delete($gametype_ids);
+}
+
+
+
+/**
+ * Custom controller for the gametype entity.
+ */
+class GametypeController extends EntityAPIController {
+
+    /**
+     * Override the save method.
+     */
+    public function save($entity, DatabaseTransaction $transaction = NULL) {
+        /*
+        if (isset($entity->is_new)) {
+            $entity->created = REQUEST_TIME;
+        }
+
+        $entity->changed = REQUEST_TIME;
+        */
+        return parent::save($entity, $transaction);
+    }
+}
+
+
+
+
+
+/**
+ * Custom controller for the administrator UI.
+ */
+class GametypeUIController extends EntityDefaultUIController {
+
+    /**
+     * Override the menu hook for default ui controller.
+     */
+    public function hook_menu() {
+        $items = parent::hook_menu();
+        $items[$this->path]['title'] = t('Gametype');
+        $items[$this->path]['description'] = t('Manage gametype, including fields.');
+        $items[$this->path]['access callback'] = 'gametype_access_callback';
+        $items[$this->path]['access arguments'] = array('administer gametype entities');
+        $items[$this->path]['type'] = MENU_LOCAL_TASK;
+        return $items;
+    }
+
+    /**
+     * Admin form for searching and doing bulk operations.
+     */
+    public function overviewForm($form, &$form_state) {
+        $form['pager'] = array('#theme' => 'pager');
+        /** @var  $header  @note t(lable) needs to be matching column name to table otherwise sort do not work */
+        $header = array(
+            'id' => array('data' => t('ID'), 'field' => 'id'),
+            'name' => array('data' => t('Name'), 'field' => 'name'),
+            'operations' => array('data' => t('Operations')),
+        );
+
+        $options = array();
+        $search_term = !empty($_GET['search']) ? $_GET['search'] : NULL;
+
+        $query = new EntityFieldQuery();
+        /** @note this is not table name, this module name */
+        $query->entityCondition('entity_type', 'gametype');
+
+        if (!empty($search_term)) {
+            $query->propertyCondition('name', '%' . $search_term . '%', 'like');
+        }
+        // Check for sort order and sort key.
+        if (!empty($_GET['sort']) && !empty($_GET['order'])) {
+            $sort = strtoupper($_GET['sort']);
+            $order = strtolower($_GET['order']);
+            $order = str_replace(' ', '_', $order);
+            if ($order != 'operations') {
+                $query->propertyOrderBy($order, $sort);
+            }
+        }
+
+        $query->pager(TOTAL_LIST_ITEMS_PER_PAGE);
+
+        $result = $query->execute();
+        $gametype_results = !empty($result['gametype']) ? $result['gametype'] : array();
+        $gametype_array = !empty($gametype_results) ? gametype_load_multiple(array_keys($gametype_results)) : array();
+        foreach ($gametype_array as $gametype_id => $gametype) {
+            $options['gametype_id-' . $gametype_id] = array(
+                'id' => l($gametype->id, 'gametype/' . $gametype->id),
+                'name' => l($gametype->name, 'gametype/' . $gametype->id),
+                'operations' =>
+                    l(t('View'), 'gametype/' . $gametype->id) . ' ' .
+                    l(t('Edit'), ADMIN_CONTENT_GAMETYPE_MANAGE_URI . $gametype_id, array('query' => array('destination' => ADMIN_CONTENT_GAMETYPE_URI))) . ' ' .
+                    l(t('Delete'), ADMIN_CONTENT_GAMETYPE_MANAGE_URI . $gametype_id . '/delete', array('attributes' => array('class' => array('gametype-delete-' . $gametype->id), ), 'query' => array('destination' => ADMIN_CONTENT_GAMETYPE_URI))),
+            );
+        }
+
+        $form['search'] = array(
+            '#type' => 'fieldset',
+            '#title' => t('Basic Search'),
+            '#collapsible' => TRUE,
+            '#collapsed' => !empty($search_term) ? FALSE : TRUE,
+        );
+
+        $form['search']['search_text'] = array(
+            '#type' => 'textfield',
+            '#title' => t('Search Term'),
+            '#default_value' => !empty($search_term) ? $search_term : '',
+        );
+
+        $form['search']['search_submit'] = array(
+            '#type' => 'submit',
+            '#value' => t('Search'),
+        );
+
+        $form['bulk_operations'] = array(
+            '#type' => 'fieldset',
+            '#title' => t('Bulk Operations'),
+            '#collapsible' => TRUE,
+            '#collapsed' => TRUE,
+        );
+
+        $form['bulk_operations']['operations'] = array(
+            '#type' => 'select',
+            '#options' => array(
+                0 => t('Select a bulk operation'),
+                'delete' => t('Delete selected gametype'),
+            ),
+        );
+
+        $form['bulk_operations']['submit'] = array(
+            '#type' => 'submit',
+            '#value' => t('Submit'),
+        );
+
+        $form['entities'] = array(
+            '#type' => 'tableselect',
+            '#header' => $header,
+            '#options' => $options,
+            '#attributes' => array('class' => array('entity-sort-table')),
+            '#empty' => t('There are no gametype.'),
+        );
+
+        return $form;
+    }
+
+    /**
+     * Form Submit method.
+     */
+    public function overviewFormSubmit($form, &$form_state) {
+        $values = $form_state['input'];
+        $gametype_ids = array();
+
+        if (!empty($values['entities'])) {
+            foreach ($values['entities'] as $index => $value) {
+                if (!empty($value)) {
+                    $gametype_ids[] = str_replace('gametype_id-', '', $value);
+                }
+            }
+
+            switch ($values['operations']) {
+                case 'delete':
+                    drupal_goto('admin/content/gametype/bulk/delete/' . implode('|', $gametype_ids));
+                    break;
+            }
+        }
+
+        if (!empty($values['search_text'])) {
+            drupal_goto('admin/content/gametype', array('query' => array('search' => $values['search_text'])));
+        }
+    }
+
+}
+
+

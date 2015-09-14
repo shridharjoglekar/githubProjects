@@ -1,0 +1,46 @@
+<?php 
+/** *
+@file gametype.install: 
+* In this file, we're adding  hook_schema() to create new table called kw_game_type.
+* 
+*/ 
+
+/** * Implements hook_install(). */
+
+ function gametype_install(){ } 
+ 
+ /** * Implements hook_uninstall(). */ 
+ 
+ function gametype_uninstall(){ } 
+ 
+ /** * Implements hook_schema(). */
+ 
+ function gametype_schema(){
+ $schema['kw_game_type'] = array(	  
+		'description' => 'game types ref data table for Entity',
+	  'fields' => array(
+		'id' => array(
+		  'description' => '',
+		  'type' => 'serial',
+		  'not null' => TRUE,
+		),
+		'name' => array(
+		  'description' => '',
+		  'type' => 'varchar',
+		  'length' => '255',
+		  'not null' => TRUE,
+		),
+		'description' => array(
+		  'description' => '',
+		  'type' => 'varchar',
+		  'length' => '255',
+		  'not null' => FALSE,
+		)
+	  ),
+	  'primary key' => array('id'),
+	  'indexes' => array(
+      'search_idx' => array('name'),
+		),
+	);
+	return $schema;
+}

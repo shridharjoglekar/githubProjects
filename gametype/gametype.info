@@ -1,0 +1,6 @@
+name = Gametype
+description = A Gametype Entity that manages knowledge game game types.
+core = 7.x
+;configure = admin/knowledge_game/game_type
+package = Knowledge Game
+dependencies[] = entity
